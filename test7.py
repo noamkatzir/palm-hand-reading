@@ -83,7 +83,7 @@ for element in elements:
 
     cv2.line(small_color, palm['center'], element['center'], (0, 255, 0), 1)
     ellipse = cv2.fitEllipse(element['contour'])
-    cv2.ellipse(small_color, ellipse, (255, 0, 0), 1)
+    cv2.ellipse(small_color, ellipse, (255, 0, 0), 1) # can add -1 to the tickness to fill the ellipse
 
     #cv2.putText(lefthand, '{}'.format(dist), element['center'], cv2.FONT_HERSHEY_SIMPLEX, 4, 1, 20)
 
