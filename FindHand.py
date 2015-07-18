@@ -2,6 +2,7 @@ __author__ = 'noam'
 import cv2
 import numpy as np
 from numpy import linalg
+import math
 from operator import itemgetter, attrgetter, methodcaller
 from matplotlib import pyplot as plt
 
@@ -121,7 +122,6 @@ class FindHand:
                 # plt.imshow(np.multiply(hand_element_mask,line_mask), cmap='gray')
                 # plt.show()
 
-
                 # if the line and the handElement came a cross the max value will be larger than zero
                 if np.multiply(hand_element_mask,line_mask).max() > 0:
                     finger_elements.append(handElement)
@@ -129,3 +129,31 @@ class FindHand:
 
         return finger_elements
 
+
+    def get_normalization_box_angle(self):
+        rect = cv2.minAreaRect(self.palm['contour'])
+        box = cv2.cv.BoxPoints(rect)
+        box = np.int0(box)
+        ydiff = float(box[0][1] - box[1][1])
+        xdiff = float(box[0][0] - box[1][0])
+
+        angle = np.pi / 2
+        if xdiff > 0:
+            angle = math.atan(ydiff/xdiff);
+
+        angle = (angle / np.pi ) * 180
+        return angle
+
+    def rotateImage(self, image, angle):
+        # padding the image befpre rotation
+        padding_size = max(image.shape[0:2]) / 4
+        image = cv2.copyMakeBorder(image, padding_size, padding_size, padding_size, padding_size,cv2.BORDER_CONSTANT, value=[255, 255, 255])
+        rows,cols = image.shape[0:2]
+
+        M = cv2.getRotationMatrix2D((cols/2,rows/2), angle, 1)
+        return cv2.warpAffine(image, M, (cols, rows))
+
+        # self.image = cv2.imread(imagePath)
+        # self.small_image = np.zeros(1)
+        # self.imageGray = cv2.cvtColor(self.image,cv2.COLOR_BGR2GRAY)
+        # self.imageMap = np.zeros(1)
