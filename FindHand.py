@@ -130,7 +130,7 @@ class FindHand:
         return finger_elements
 
 
-    def get_normalization_box_angle(self):
+    def calculate_normalization_box_angle(self):
         rect = cv2.minAreaRect(self.palm['contour'])
         box = cv2.cv.BoxPoints(rect)
         box = np.int0(box)
@@ -142,7 +142,8 @@ class FindHand:
             angle = math.atan(ydiff/xdiff);
 
         angle = (angle / np.pi ) * 180
-        return angle
+
+        self.palm['normalization_angle'] = angle
 
     def rotateImage(self, image, angle):
         # padding the image befpre rotation
