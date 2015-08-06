@@ -97,13 +97,13 @@ class FindHand:
                 self.fingers.append(self._collect_finger_elements(handElement))
 
     def _collect_finger_elements(self, finger_end):
-        line_mask = np.zeros(self.imageGray.shape, np.uint8)
-        rows,cols = self.imageGray.shape[:2]
+        line_mask = np.zeros(self.imageMap.shape, np.uint8)
+        rows,cols = self.imageMap.shape[:2]
         [vx, vy, x, y] = cv2.fitLine(finger_end['contour'], cv2.cv.CV_DIST_L2, 0, 0.01, 0.01)
         lefty = int((-x*vy/vx) + y)
         righty = int(((cols-x)*vy/vx)+y)
         cv2.line(line_mask, (cols-1, righty), (0, lefty), 1, 2)
-        hand_element_mask = np.zeros(self.imageGray.shape, np.uint8)
+        hand_element_mask = np.zeros(self.imageMap.shape, np.uint8)
 
         # any finger element which already passed as the flag as true, make the detection easier
         finger_elements = [finger_end]
