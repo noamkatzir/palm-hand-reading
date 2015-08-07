@@ -6,6 +6,7 @@ import math
 from operator import itemgetter, attrgetter, methodcaller
 from matplotlib import pyplot as plt
 
+
 # __author__ = 'katzirn'
 #
 # class MatchingData:
@@ -29,19 +30,21 @@ from matplotlib import pyplot as plt
 #     def notObjectsDir(self,value):
 #         self.__notObjectsDir = value
 
+
 class FindHand:
     def __init__(self, imagePath):
         self.image = cv2.imread(imagePath)
         self.small_image = np.zeros(1)
-        self.imageGray = cv2.cvtColor(self.image,cv2.COLOR_BGR2GRAY)
+        self.imageGray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
         self.imageMap = np.zeros(1)
         self.handElements = []
         self.fingers = []
         self.palm = {}
+        self.rotatedContours = []
 
     def create_map_with_pyramid(self, pyramid_level=5, area_threshold=10):
-        self.small_image = cv2.resize(self.image, (0, 0), fx=0.5**pyramid_level, fy=0.5**pyramid_level)
-        small = cv2.resize(self.imageGray, (0, 0), fx=0.5**pyramid_level, fy=0.5**pyramid_level)
+        self.small_image = cv2.resize(self.image, (0, 0), fx=0.5 ** pyramid_level, fy=0.5 ** pyramid_level)
+        small = cv2.resize(self.imageGray, (0, 0), fx=0.5 ** pyramid_level, fy=0.5 ** pyramid_level)
 
         # I put the threshold to get the hand elements binay image
         ret, threshold = cv2.threshold(small, 245, 255, cv2.THRESH_BINARY_INV)
@@ -62,8 +65,8 @@ class FindHand:
         self.handElements = []
         for i in xrange(len(contours)):
             M = cv2.moments(contours[i])
-            centroid_x = int(M['m10']/M['m00'])
-            centroid_y = int(M['m01']/M['m00'])
+            centroid_x = M['m10'] / M['m00']
+            centroid_y = M['m01'] / M['m00']
 
             # cv2.circle(lefthand, (centroid_x, centroid_y), 10, (255, 0, 0),-1)
 
@@ -98,11 +101,11 @@ class FindHand:
 
     def _collect_finger_elements(self, finger_end):
         line_mask = np.zeros(self.imageMap.shape, np.uint8)
-        rows,cols = self.imageMap.shape[:2]
+        rows, cols = self.imageMap.shape[:2]
         [vx, vy, x, y] = cv2.fitLine(finger_end['contour'], cv2.cv.CV_DIST_L2, 0, 0.01, 0.01)
-        lefty = int((-x*vy/vx) + y)
-        righty = int(((cols-x)*vy/vx)+y)
-        cv2.line(line_mask, (cols-1, righty), (0, lefty), 1, 2)
+        lefty = int((-x * vy / vx) + y)
+        righty = int(((cols - x) * vy / vx) + y)
+        cv2.line(line_mask, (cols - 1, righty), (0, lefty), 1, 2)
         hand_element_mask = np.zeros(self.imageMap.shape, np.uint8)
 
         # any finger element which already passed as the flag as true, make the detection easier
@@ -123,12 +126,11 @@ class FindHand:
                 # plt.show()
 
                 # if the line and the handElement came a cross the max value will be larger than zero
-                if np.multiply(hand_element_mask,line_mask).max() > 0:
+                if np.multiply(hand_element_mask, line_mask).max() > 0:
                     finger_elements.append(handElement)
                     handElement['passed'] = True
 
         return finger_elements
-
 
     def calculate_normalization_box_angle(self):
         rect = cv2.minAreaRect(self.palm['contour'])
@@ -139,22 +141,36 @@ class FindHand:
 
         angle = np.pi / 2
         if xdiff > 0:
-            angle = math.atan(ydiff/xdiff);
+            angle = math.atan(ydiff / xdiff)
 
-        angle = (angle / np.pi ) * 180
+        angle = (angle / np.pi) * 180
 
         self.palm['normalization_angle'] = angle
 
-    def rotateImage(self, image, angle):
-        # padding the image befpre rotation
+    def rotate_contours_according_palm_center(self, angle, padding_size=-1):
+        if padding_size is -1:
+            padding_size = max(self.small_image.shape[0:2]) / 4
+
+        center = self.palm['center'][0] + padding_size, self.palm['center'][1] + padding_size
+        M = cv2.getRotationMatrix2D(center, angle, 1)
+
+        for handElement in self.handElements:
+            homogeneous_representation = np.ones((handElement['contour'].shape[0], 3), np.uint8)
+            contour = handElement['contour'].copy().reshape((handElement['contour'].shape[0],2))
+            homogeneous_representation[:, :2] = contour + padding_size
+
+            rotatedContour = np.dot(M, homogeneous_representation.transpose())
+
+            handElement['rotatedContour'] = np.int32(rotatedContour.transpose().reshape((handElement['contour'].shape[0], 1, 2)))
+            self.rotatedContours.append(handElement['rotatedContour'])
+
+    def rotate_image(self, image, angle):
+        # padding the image before rotation
         padding_size = max(image.shape[0:2]) / 4
-        image = cv2.copyMakeBorder(image, padding_size, padding_size, padding_size, padding_size,cv2.BORDER_CONSTANT, value=[255, 255, 255])
-        rows,cols = image.shape[0:2]
+        image = cv2.copyMakeBorder(image, padding_size, padding_size, padding_size, padding_size, cv2.BORDER_CONSTANT,
+                                   value=[255, 255, 255])
+        rows, cols = image.shape[0:2]
+        center = self.palm['center'][0] + padding_size, self.palm['center'][1] + padding_size
 
-        M = cv2.getRotationMatrix2D((cols/2,rows/2), angle, 1)
+        M = cv2.getRotationMatrix2D(center, angle, 1)
         return cv2.warpAffine(image, M, (cols, rows))
-
-        # self.image = cv2.imread(imagePath)
-        # self.small_image = np.zeros(1)
-        # self.imageGray = cv2.cvtColor(self.image,cv2.COLOR_BGR2GRAY)
-        # self.imageMap = np.zeros(1)

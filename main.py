@@ -15,18 +15,23 @@ print len(first_hand.fingers)
 
 small1 = first_hand.small_image.copy()
 
-for finger in first_hand.fingers:
-    finger_merged_contour = np.concatenate([element['contour'] for element in finger])
-    ellipse = cv2.fitEllipse(finger_merged_contour)
-    # cv2.drawContours(small1, [finger_merged_contour], 0, 1, 1)
-    cv2.ellipse(small1, ellipse, (255, 0, 0), 1) # can add -1 to the tickness to fill the ellipse
+# for finger in first_hand.fingers:
+#     finger_merged_contour = np.concatenate([element['contour'] for element in finger])
+#     ellipse = cv2.fitEllipse(finger_merged_contour)
+#     # cv2.drawContours(small1, [finger_merged_contour], 0, 1, 1)
+#     cv2.ellipse(small1, ellipse, (255, 0, 0), 1) # can add -1 to the tickness to fill the ellipse
 
 rect = cv2.minAreaRect(first_hand.palm['contour'])
 box = cv2.cv.BoxPoints(rect)
 box = np.int0(box)
 cv2.drawContours(small1, [box], 0, (0, 0, 255), 1)
 first_hand.calculate_normalization_box_angle()
-small1 = first_hand.rotateImage(small1, first_hand.palm['normalization_angle'])
+first_hand.rotate_contours_according_palm_center(first_hand.palm['normalization_angle'])
+small1 = first_hand.rotate_image(small1, first_hand.palm['normalization_angle'])
+
+for i in xrange(len(first_hand.rotatedContours)):
+    cv2.drawContours(small1, first_hand.rotatedContours, i, (0, 0, 255), 1)
+
 # small1 = ndimage.rotate(small1, first_hand.get_normalization_box_angle())
 
 second_hand = fh.FindHand('./images/preprocessed/noam_left_hand_30.5.15_02062015_0001.png')
@@ -39,17 +44,22 @@ print len(second_hand.fingers)
 
 small2 = second_hand.small_image.copy()
 
-for finger in second_hand.fingers:
-    finger_merged_contour = np.concatenate([element['contour'] for element in finger])
-    ellipse = cv2.fitEllipse(finger_merged_contour)
-    cv2.ellipse(small2, ellipse, (255, 0, 0), 1) # can add -1 to the tickness to fill the ellipse
+# for finger in second_hand.fingers:
+#     finger_merged_contour = np.concatenate([element['contour'] for element in finger])
+#     ellipse = cv2.fitEllipse(finger_merged_contour)
+#     cv2.ellipse(small2, ellipse, (255, 0, 0), 1) # can add -1 to the tickness to fill the ellipse
 
 rect = cv2.minAreaRect(second_hand.palm['contour'])
 box = cv2.cv.BoxPoints(rect)
 box = np.int0(box)
 cv2.drawContours(small2, [box], 0, (0, 0, 255), 1)
 second_hand.calculate_normalization_box_angle()
-small2 = second_hand.rotateImage(small2, second_hand.palm['normalization_angle']+180)
+second_hand.rotate_contours_according_palm_center(second_hand.palm['normalization_angle'])
+small2 = second_hand.rotate_image(small2, second_hand.palm['normalization_angle'])
+
+for i in xrange(len(second_hand.rotatedContours)):
+    cv2.drawContours(small2, second_hand.rotatedContours, i, (0, 0, 255), 1)
+# small2 = second_hand.rotate_image(small2, second_hand.palm['normalization_angle']+180)
 # small2 = ndimage.rotate(small2, second_hand.get_normalization_box_angle())
 
 
