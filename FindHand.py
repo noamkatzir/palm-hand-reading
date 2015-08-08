@@ -152,6 +152,13 @@ class FindHand:
         angle = np.pi / 2
         if xdiff is not 0:
             angle = math.atan(ydiff / xdiff)
+
+        if xdiff < 0:
+            if ydiff > 0:
+                angle += np.pi
+            elif ydiff < 0:
+                angle -= np.pi
+
         angle = (angle / np.pi) * 180
         return angle
 
@@ -167,6 +174,7 @@ class FindHand:
         rotatedContour = np.dot(M, homogeneous_center)
         self.palm['rotatedCenter'] = rotatedContour[0],rotatedContour[1]
 
+        self.rotatedContours = []
         for handElement in self.handElements:
             homogeneous_representation = np.ones((handElement['contour'].shape[0], 3), np.uint8)
             contour = handElement['contour'].copy().reshape((handElement['contour'].shape[0],2))
@@ -204,7 +212,7 @@ class FindHand:
         center = np.array(self.palm['rotatedCenter'])
 
         for finger in self.fingers:
-            pos = center - np.array(finger[0]['rotatedCenter'])
+            pos = np.array(finger[0]['rotatedCenter']) - center
 
             finger[0]['angleFromPalmCenter'] = self._calculate_angle(pos[0], pos[1])
 
