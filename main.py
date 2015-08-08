@@ -28,7 +28,9 @@ cv2.drawContours(small1, [box], 0, (0, 0, 255), 1)
 first_hand.calculate_normalization_box_angle()
 first_hand.rotate_contours_according_palm_center(first_hand.palm['normalization_angle'])
 first_hand.map_fingers_and_orientation()
+first_hand.map_fingers_angles_from_palm()
 small1 = first_hand.rotate_image(small1, first_hand.palm['normalization_angle'])
+cv2.circle(small1, (int(first_hand.palm['rotatedCenter'][0]), int(first_hand.palm['rotatedCenter'][1])), 3, (0, 0, 255), -1)
 
 for i in xrange(len(first_hand.rotatedContours)):
     cv2.drawContours(small1, first_hand.rotatedContours, i, (0, 0, 255), 1)
@@ -60,7 +62,9 @@ cv2.drawContours(small2, [box], 0, (0, 0, 255), 1)
 second_hand.calculate_normalization_box_angle()
 second_hand.rotate_contours_according_palm_center(second_hand.palm['normalization_angle'])
 second_hand.map_fingers_and_orientation()
+second_hand.map_fingers_angles_from_palm()
 small2 = second_hand.rotate_image(small2, second_hand.palm['normalization_angle'])
+cv2.circle(small2, (int(second_hand.palm['rotatedCenter'][0]), int(second_hand.palm['rotatedCenter'][1])), 3, (0, 0, 255), -1)
 
 for i in xrange(len(second_hand.rotatedContours)):
     cv2.drawContours(small2, second_hand.rotatedContours, i, (0, 0, 255), 1)

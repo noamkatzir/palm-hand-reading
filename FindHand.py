@@ -42,6 +42,7 @@ class FindHand:
         self.palm = {}
         self.rotatedContours = []
         self.type = handType
+        self.orientation_angle = 0
 
     def create_map_with_pyramid(self, pyramid_level=5, area_threshold=10):
         self.small_image = cv2.resize(self.image, (0, 0), fx=0.5 ** pyramid_level, fy=0.5 ** pyramid_level)
@@ -143,13 +144,16 @@ class FindHand:
         ydiff = float(box[0][1] - box[1][1])
         xdiff = float(box[0][0] - box[1][0])
 
-        angle = np.pi / 2
-        if xdiff > 0:
-            angle = math.atan(ydiff / xdiff)
-
-        angle = (angle / np.pi) * 180
+        angle = self._calculate_angle(xdiff, ydiff)
 
         self.palm['normalization_angle'] = angle
+
+    def _calculate_angle(self, xdiff, ydiff):
+        angle = np.pi / 2
+        if xdiff is not 0:
+            angle = math.atan(ydiff / xdiff)
+        angle = (angle / np.pi) * 180
+        return angle
 
     def rotate_contours_according_palm_center(self, angle, padding_size=-1):
         if padding_size is -1:
@@ -158,6 +162,10 @@ class FindHand:
         # adding the padding to the center because when we padding the image the center is moving
         center = self.palm['center'][0] + padding_size, self.palm['center'][1] + padding_size
         M = cv2.getRotationMatrix2D(center, angle, 1)
+
+        homogeneous_center = np.array([self.palm['center'][0], self.palm['center'][1], 1])
+        rotatedContour = np.dot(M, homogeneous_center)
+        self.palm['rotatedCenter'] = rotatedContour[0],rotatedContour[1]
 
         for handElement in self.handElements:
             homogeneous_representation = np.ones((handElement['contour'].shape[0], 3), np.uint8)
@@ -177,21 +185,28 @@ class FindHand:
         end_fingers_centers = np.array([finger[0]['rotatedCenter'] for finger in self.fingers])
         order = self.type is 'right'
 
-        if np.sum(end_fingers_centers[:,0] >= x+w) >= 4:
+        if np.sum(end_fingers_centers[:, 0] >= x+w) >= 4:
             angle = 0
-            # [i[0] for i in sorted(enumerate(myList), key=lambda x:x[1])]
-            self.fingers.sort(key=lambda  y: y[0]['rotatedCenter'][1], reverse=(not order))
-        elif np.sum(end_fingers_centers[:,1] >= y+h) >= 4:
+            self.fingers.sort(key=lambda y: y[0]['rotatedCenter'][1], reverse=(not order))
+        elif np.sum(end_fingers_centers[:, 1] >= y+h) >= 4:
             angle = 90
-            self.fingers.sort(key=lambda  x: x[0]['rotatedCenter'][0], reverse=order)
-        elif np.sum(end_fingers_centers[:,0] <= x) >= 4:
+            self.fingers.sort(key=lambda x: x[0]['rotatedCenter'][0], reverse=order)
+        elif np.sum(end_fingers_centers[:, 0] <= x) >= 4:
             angle = 180
-            self.fingers.sort(key=lambda  y: y[0]['rotatedCenter'][1], reverse=order)
+            self.fingers.sort(key=lambda y: y[0]['rotatedCenter'][1], reverse=order)
         else:
             angle = 270
-            self.fingers.sort(key=lambda  x: x[0]['rotatedCenter'][0], reverse=(not order))
+            self.fingers.sort(key=lambda x: x[0]['rotatedCenter'][0], reverse=(not order))
 
-        print 'the orientation is {}'.format(angle)
+        self.orientation_angle = angle
+
+    def map_fingers_angles_from_palm(self):
+        center = np.array(self.palm['rotatedCenter'])
+
+        for finger in self.fingers:
+            pos = center - np.array(finger[0]['rotatedCenter'])
+
+            finger[0]['angleFromPalmCenter'] = self._calculate_angle(pos[0], pos[1])
 
     def rotate_image(self, image, angle):
         # padding the image before rotation
