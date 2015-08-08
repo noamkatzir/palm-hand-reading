@@ -32,7 +32,7 @@ from matplotlib import pyplot as plt
 
 
 class FindHand:
-    def __init__(self, imagePath):
+    def __init__(self, imagePath,handType):
         self.image = cv2.imread(imagePath)
         self.small_image = np.zeros(1)
         self.imageGray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
@@ -41,6 +41,7 @@ class FindHand:
         self.fingers = []
         self.palm = {}
         self.rotatedContours = []
+        self.type = handType
 
     def create_map_with_pyramid(self, pyramid_level=5, area_threshold=10):
         self.small_image = cv2.resize(self.image, (0, 0), fx=0.5 ** pyramid_level, fy=0.5 ** pyramid_level)
@@ -64,14 +65,11 @@ class FindHand:
 
         self.handElements = []
         for i in xrange(len(contours)):
-            M = cv2.moments(contours[i])
-            centroid_x = M['m10'] / M['m00']
-            centroid_y = M['m01'] / M['m00']
 
             # cv2.circle(lefthand, (centroid_x, centroid_y), 10, (255, 0, 0),-1)
 
             element = {
-                'center': (centroid_x, centroid_y),
+                'center': self._get_contour_center(contours[i]),
                 'contour': contours[i],
                 'area': cv2.contourArea(contours[i]),
                 'palm': False,
@@ -98,6 +96,12 @@ class FindHand:
             if handElement['palm'] is False and handElement['passed'] is False:
                 # fetching all the fingers from the image
                 self.fingers.append(self._collect_finger_elements(handElement))
+
+    def _get_contour_center(self,contour):
+        M = cv2.moments(contour)
+        centroid_x = M['m10'] / M['m00']
+        centroid_y = M['m01'] / M['m00']
+        return (centroid_x, centroid_y)
 
     def _collect_finger_elements(self, finger_end):
         line_mask = np.zeros(self.imageMap.shape, np.uint8)
@@ -151,18 +155,43 @@ class FindHand:
         if padding_size is -1:
             padding_size = max(self.small_image.shape[0:2]) / 4
 
+        # adding the padding to the center because when we padding the image the center is moving
         center = self.palm['center'][0] + padding_size, self.palm['center'][1] + padding_size
         M = cv2.getRotationMatrix2D(center, angle, 1)
 
         for handElement in self.handElements:
             homogeneous_representation = np.ones((handElement['contour'].shape[0], 3), np.uint8)
             contour = handElement['contour'].copy().reshape((handElement['contour'].shape[0],2))
+            # adding the padding to the contour points too
             homogeneous_representation[:, :2] = contour + padding_size
 
             rotatedContour = np.dot(M, homogeneous_representation.transpose())
 
             handElement['rotatedContour'] = np.int32(rotatedContour.transpose().reshape((handElement['contour'].shape[0], 1, 2)))
+            handElement['rotatedCenter'] = self._get_contour_center(handElement['rotatedContour'])
             self.rotatedContours.append(handElement['rotatedContour'])
+
+    def map_fingers_and_orientation(self):
+        x,y,w,h = cv2.boundingRect(self.palm['rotatedContour'])
+
+        end_fingers_centers = np.array([finger[0]['rotatedCenter'] for finger in self.fingers])
+        order = self.type is 'right'
+
+        if np.sum(end_fingers_centers[:,0] >= x+w) >= 4:
+            angle = 0
+            # [i[0] for i in sorted(enumerate(myList), key=lambda x:x[1])]
+            self.fingers.sort(key=lambda  y: y[0]['rotatedCenter'][1], reverse=(not order))
+        elif np.sum(end_fingers_centers[:,1] >= y+h) >= 4:
+            angle = 90
+            self.fingers.sort(key=lambda  x: x[0]['rotatedCenter'][0], reverse=order)
+        elif np.sum(end_fingers_centers[:,0] <= x) >= 4:
+            angle = 180
+            self.fingers.sort(key=lambda  y: y[0]['rotatedCenter'][1], reverse=order)
+        else:
+            angle = 270
+            self.fingers.sort(key=lambda  x: x[0]['rotatedCenter'][0], reverse=(not order))
+
+        print 'the orientation is {}'.format(angle)
 
     def rotate_image(self, image, angle):
         # padding the image before rotation
