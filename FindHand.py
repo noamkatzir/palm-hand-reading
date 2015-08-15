@@ -266,26 +266,24 @@ class FindHand:
                 return np.multiply(255 - self.small_image.copy(), contourMap).astype(np.float)
 
     @staticmethod
-    def optimize_registration_transform(bin_image1, bin_image2, bin_image1_center):
+    def optimize_registration_transform(bin_image1, bin_image2, bin_image1_center, bin_image2_center):
         """
             x is a vector of the including the translation and the transform parameters,
             X0 is the angle
         """
+        def transform(x):
+            rows, cols = bin_image1.shape[0:2]
+            transform_matrix = cv2.getRotationMatrix2D(bin_image1_center, x, 1)
+            transformed_bin_image1 = cv2.warpAffine(bin_image1, transform_matrix, (cols, rows))
+            return transform_matrix, transformed_bin_image1
 
         def optimization_function(x):
-            rows, cols = bin_image1.shape[0:2]
-            M = cv2.getRotationMatrix2D(bin_image1_center, x, 1)
-
-            transformed_bin_image1 = cv2.warpAffine(bin_image1, M, (cols, rows))
+            transform_matrix, transformed_bin_image1 = transform(x)
             return np.linalg.norm(transformed_bin_image1 - bin_image2)
 
         optimized_params = minimize_scalar(optimization_function, bounds=(-10, 10), method='bounded')
 
-        rows, cols = bin_image1.shape[0:2]
-        rotation_matrix = cv2.getRotationMatrix2D(bin_image1_center, optimized_params.x, 1)
-
-        rotated_bin_image1 = cv2.warpAffine(bin_image1, rotation_matrix, (cols, rows))
-        return rotation_matrix, rotated_bin_image1
+        return transform(optimized_params.x)
 
     def rotate_image(self, image, angle):
         # padding the image before rotation
