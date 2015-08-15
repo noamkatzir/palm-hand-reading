@@ -5,8 +5,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy import ndimage
 
-# first_hand = fh.FindHand('./images/preprocessed/noam_left_hand_6.12.08_02062015.png', 'left')
-first_hand = fh.FindHand('./images/preprocessed/noam_right_hand_19.08.08_02062015.png', 'right')
+first_hand = fh.FindHand('./images/preprocessed/noam_left_hand_6.12.08_02062015.png', 'left')
+# first_hand = fh.FindHand('./images/preprocessed/noam_right_hand_19.08.08_02062015.png', 'right')
 
 first_hand.create_map_with_pyramid()
 first_hand.find_hand_elements()
@@ -33,28 +33,35 @@ second_hand.normalize_image_and_map_fingers()
 first_hand.rotate_to_the_other_hand(second_hand, True)
 small1_rotated = first_hand.get_range_of_interest(True,True)
 small2_negative = second_hand.get_range_of_interest(False,True)
-registration_transform, small1_rotated_again = fh.FindHand.optimize_registration_transform(small1_rotated.copy(), small2_negative.copy(), second_hand.palm['center'])
+# registration_transform, small1_rotated_again = fh.FindHand.optimize_registration_transform(small1_rotated.copy(), small2_negative.copy(), first_hand.palm['rotatedCenter'], second_hand.palm['center'])
+# print "distance between centers is {}".format(np.linalg.norm(np.array(first_hand.palm['rotatedCenter']) - np.array(second_hand.palm['center'])))
 
-small1_preview = np.zeros(small1_rotated_again.shape, np.uint8)
-small1_preview[small1_rotated_again == 1] = 255
+small1_preview_before = np.zeros(small1_rotated.shape, np.uint8)
+small1_preview_before[small1_rotated == 1] = 255
 
-small2_preview = np.zeros(small1_rotated_again.shape, np.uint8)
+small1_preview = np.zeros(small1_rotated.shape, np.uint8)
+small1_preview[small1_rotated == 1] = 255
+
+small2_preview = np.zeros(small2_negative.shape, np.uint8)
 small2_preview[small2_negative == 1] = 255
 
 plt.figure(1)
 plt.subplot(231)
-plt.imshow(small1_preview[:, :, 0], cmap='gray')
+plt.imshow(small1_preview_before[:, :, 0], cmap='gray')
 plt.title('2008 rotated type is {}'.format(first_hand.type))
 plt.subplot(232)
+plt.imshow(small1_preview[:, :, 0], cmap='gray')
+plt.title('2008 rotated type is {}'.format(first_hand.type))
+plt.subplot(233)
 plt.imshow(small2_preview[:, :, 0], cmap='gray')
 plt.title('2015 type is {}'.format(second_hand.type))
-plt.subplot(233)
+plt.subplot(234)
 plt.imshow((small2_preview - small1_preview)[:, :, 0], cmap='gray')
 plt.title('diff 2015 - 2008 type is {}'.format(first_hand.type))
-plt.subplot(234)
+plt.subplot(235)
 plt.imshow((small1_preview - small2_preview)[:, :, 0], cmap='gray')
 plt.title('diff 2008 - 2015')
-plt.subplot(235)
+plt.subplot(236)
 plt.imshow(np.abs((small1_preview - small2_preview)[:, :, 0]), cmap='gray')
 plt.title('absolute diff 2008 - 2015')
 plt.show()
