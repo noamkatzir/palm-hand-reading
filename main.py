@@ -5,8 +5,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy import ndimage
 
-# first_hand = fh.FindHand('./images/preprocessed/noam_left_hand_6.12.08_02062015.png', 'left')
-first_hand = fh.FindHand('./images/preprocessed/noam_right_hand_19.08.08_02062015.png', 'right')
+first_hand = fh.FindHand('./images/preprocessed/noam_left_hand_6.12.08_02062015.png', 'left')
+# first_hand = fh.FindHand('./images/preprocessed/noam_right_hand_19.08.08_02062015.png', 'right')
 
 first_hand.create_map_with_pyramid()
 first_hand.find_hand_elements()
@@ -30,7 +30,7 @@ first_hand.calculate_normalization_box_angle()
 first_hand.rotate_contours_according_palm_center(first_hand.palm['normalization_angle'])
 first_hand.map_fingers_and_orientation()
 first_hand.map_fingers_angles_from_palm()
-full_normalization_angle1 = first_hand.palm['normalization_angle'] + first_hand.orientation_angle + (first_hand.fingers[-3][0]['angleFromPalmCenter'] - first_hand.orientation_angle)
+full_normalization_angle1 = first_hand.palm['normalization_angle'] + first_hand.orientation_angle + (first_hand.fingers[2][0]['angleFromPalmCenter'] - first_hand.orientation_angle)
 first_hand.rotate_contours_according_palm_center(full_normalization_angle1)
 small1_normalized = first_hand.rotate_image(small1, first_hand.palm['normalization_angle'])
 small1 = first_hand.rotate_image(small1, full_normalization_angle1)
@@ -68,7 +68,7 @@ second_hand.calculate_normalization_box_angle()
 second_hand.rotate_contours_according_palm_center(second_hand.palm['normalization_angle'])
 second_hand.map_fingers_and_orientation()
 second_hand.map_fingers_angles_from_palm()
-full_normalization_angle2 = second_hand.palm['normalization_angle'] + second_hand.orientation_angle + (second_hand.fingers[-3][0]['angleFromPalmCenter'] - second_hand.orientation_angle)
+full_normalization_angle2 = second_hand.palm['normalization_angle'] + second_hand.orientation_angle + (second_hand.fingers[2][0]['angleFromPalmCenter'] - second_hand.orientation_angle)
 second_hand.rotate_contours_according_palm_center(full_normalization_angle2)
 small2_normalized = second_hand.rotate_image(small2, second_hand.palm['normalization_angle'])
 small2 = second_hand.rotate_image(small2, full_normalization_angle2)

@@ -3,37 +3,14 @@ import cv2
 import numpy as np
 from numpy import linalg
 import math
-from operator import itemgetter, attrgetter, methodcaller
+from operator import itemgetter
+from scipy.optimize import minimize_scalar
 from matplotlib import pyplot as plt
 
 
-# __author__ = 'katzirn'
-#
-# class MatchingData:
-#     def __init__(self,objectsDir,notObjectsDir):
-#         self.objectsDir = objectsDir
-#         self.notObjectsDir = notObjectsDir
-#
-#     @property
-#     def objectsDir(self):
-#         return self.__objectsDir
-#
-#     @objectsDir.setter
-#     def objectsDir(self,value):
-#         self.__objectsDir = value
-#
-#     @property
-#     def notObjectsDir(self):
-#         return self.__notObjectsDir
-#
-#     @notObjectsDir.setter
-#     def notObjectsDir(self,value):
-#         self.__notObjectsDir = value
-
-
 class FindHand:
-    def __init__(self, imagePath,handType):
-        self.image = cv2.imread(imagePath)
+    def __init__(self, image_path, hand_type):
+        self.image = cv2.imread(image_path)
         self.small_image = np.zeros(1)
         self.imageGray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
         self.imageMap = np.zeros(1)
@@ -41,7 +18,8 @@ class FindHand:
         self.fingers = []
         self.palm = {}
         self.rotatedContours = []
-        self.type = handType
+        self.type = hand_type
+        self.rotatedImage = np.zeros(1)
         self.orientation_angle = 0
 
     def create_map_with_pyramid(self, pyramid_level=5, area_threshold=10):
@@ -66,7 +44,6 @@ class FindHand:
 
         self.handElements = []
         for i in xrange(len(contours)):
-
             # cv2.circle(lefthand, (centroid_x, centroid_y), 10, (255, 0, 0),-1)
 
             element = {
@@ -79,7 +56,7 @@ class FindHand:
 
             self.handElements.append(element)
 
-        # mapp the distance of hand elements from the palm
+        # map the distance of hand elements from the palm
         self.palm = max(self.handElements, key=lambda x: x['area'])
         self.palm['palm'] = True
         self.palm['dist'] = 0
@@ -98,7 +75,7 @@ class FindHand:
                 # fetching all the fingers from the image
                 self.fingers.append(self._collect_finger_elements(handElement))
 
-    def _get_contour_center(self,contour):
+    def _get_contour_center(self, contour):
         M = cv2.moments(contour)
         centroid_x = M['m10'] / M['m00']
         centroid_y = M['m01'] / M['m00']
@@ -162,6 +139,19 @@ class FindHand:
         angle = (angle / np.pi) * 180
         return angle
 
+    def _transform_contour_and_center(self, transform, handElement, padding_size=0):
+        M = transform[:2, :]
+        homogeneous_representation = np.ones((handElement['contour'].shape[0], 3), np.uint8)
+        contour = handElement['contour'].copy().reshape((handElement['contour'].shape[0], 2))
+        # adding the padding to the contour points too
+        homogeneous_representation[:, :2] = contour + padding_size
+
+        rotatedContour = np.dot(M, homogeneous_representation.transpose())
+
+        handElement['rotatedContour'] = np.int32(
+            rotatedContour.transpose().reshape((handElement['contour'].shape[0], 1, 2)))
+        handElement['rotatedCenter'] = self._get_contour_center(handElement['rotatedContour'])
+
     def rotate_contours_according_palm_center(self, angle, padding_size=-1):
         if padding_size is -1:
             padding_size = max(self.small_image.shape[0:2]) / 4
@@ -172,31 +162,23 @@ class FindHand:
 
         homogeneous_center = np.array([self.palm['center'][0], self.palm['center'][1], 1])
         rotatedContour = np.dot(M, homogeneous_center)
-        self.palm['rotatedCenter'] = rotatedContour[0],rotatedContour[1]
+        self.palm['rotatedCenter'] = rotatedContour[0], rotatedContour[1]
 
         self.rotatedContours = []
         for handElement in self.handElements:
-            homogeneous_representation = np.ones((handElement['contour'].shape[0], 3), np.uint8)
-            contour = handElement['contour'].copy().reshape((handElement['contour'].shape[0],2))
-            # adding the padding to the contour points too
-            homogeneous_representation[:, :2] = contour + padding_size
-
-            rotatedContour = np.dot(M, homogeneous_representation.transpose())
-
-            handElement['rotatedContour'] = np.int32(rotatedContour.transpose().reshape((handElement['contour'].shape[0], 1, 2)))
-            handElement['rotatedCenter'] = self._get_contour_center(handElement['rotatedContour'])
+            self._transform_contour_and_center(M, handElement, padding_size)
             self.rotatedContours.append(handElement['rotatedContour'])
 
     def map_fingers_and_orientation(self):
-        x,y,w,h = cv2.boundingRect(self.palm['rotatedContour'])
+        x, y, w, h = cv2.boundingRect(self.palm['rotatedContour'])
 
         end_fingers_centers = np.array([finger[0]['rotatedCenter'] for finger in self.fingers])
         order = self.type is 'right'
 
-        if np.sum(end_fingers_centers[:, 0] >= x+w) >= 4:
+        if np.sum(end_fingers_centers[:, 0] >= x + w) >= 4:
             angle = 0
             self.fingers.sort(key=lambda y: y[0]['rotatedCenter'][1], reverse=(not order))
-        elif np.sum(end_fingers_centers[:, 1] >= y+h) >= 4:
+        elif np.sum(end_fingers_centers[:, 1] >= y + h) >= 4:
             angle = 90
             self.fingers.sort(key=lambda x: x[0]['rotatedCenter'][0], reverse=order)
         elif np.sum(end_fingers_centers[:, 0] <= x) >= 4:
@@ -215,6 +197,88 @@ class FindHand:
             pos = np.array(finger[0]['rotatedCenter']) - center
 
             finger[0]['angleFromPalmCenter'] = self._calculate_angle(pos[0], pos[1])
+
+    def getCentersList(self):
+        myHandPoints = [list(finger[0]['center']) for finger in self.fingers]
+        myHandPoints.insert(0,list(self.palm['center']))
+        return myHandPoints
+
+    # using optimization to find the orientation between to hands
+    def _calculate_transform_matrix(self, other_hand):
+        src = np.float32(self.getCentersList()).reshape(-1, 1, 2)
+        dest = np.float32(other_hand.getCentersList()).reshape(-1, 1, 2)
+
+        transform, mask = cv2.findHomography(src, dest, cv2.RANSAC, 5.0)
+
+        return transform
+
+    def normalize_image_and_map_fingers(self):
+        self.calculate_normalization_box_angle()
+        self.rotate_contours_according_palm_center(self.palm['normalization_angle'])
+        self.map_fingers_and_orientation()
+
+    """
+     rotate the small image to the other hand small image including contours and centers
+    """
+    def rotate_to_the_other_hand(self, other_hand, use_negative=False):
+        transform_matrix = self._calculate_transform_matrix(other_hand)
+
+        for handElement in self.handElements:
+            self._transform_contour_and_center(transform_matrix, handElement)
+
+        rows, cols = self.small_image.shape[0:2]
+
+        if use_negative:
+            image = 255 - self.small_image.copy()
+        else:
+            image = self.small_image.copy()
+
+        self.rotatedImage = cv2.warpPerspective(image, transform_matrix, (cols, rows))
+
+        return self.rotatedImage
+
+    """
+    return negative or bin small image of the hand without the hand background, considering the rotation
+    """
+    def get_range_of_interest(self, rotated=False, binImage=False):
+        # cv2.drawContours(self.imageMap, contours, i, 255, -1)
+        contourMap = np.zeros(self.small_image.shape, np.uint8)
+
+        for handElement in self.handElements:
+            if rotated:
+                cv2.drawContours(contourMap, [handElement['rotatedContour']], 0, 1, -1)
+            else:
+                cv2.drawContours(contourMap, [handElement['contour']], 0, 1, -1)
+
+        if binImage:
+            return contourMap
+        else:
+            if rotated:
+                return np.multiply(255 - self.rotatedImage, contourMap).astype(np.float)
+            else:
+                return np.multiply(255 - self.small_image.copy(), contourMap).astype(np.float)
+
+    @staticmethod
+    def optimize_registration_transform(bin_image1, bin_image2, bin_image1_center):
+        """
+            x is a vector of the including the translation and the transform parameters,
+            X0 is the angle
+        """
+
+        def optimization_function(x):
+            rows, cols = bin_image1.shape[0:2]
+            M = cv2.getRotationMatrix2D(bin_image1_center, x, 1)
+
+            transformed_bin_image1 = cv2.warpAffine(bin_image1, M, (cols, rows))
+            return np.linalg.norm(transformed_bin_image1 - bin_image2)
+
+        optimized_params = minimize_scalar(optimization_function, bounds=(-10, 10), method='bounded')
+
+        rows, cols = bin_image1.shape[0:2]
+        rotation_matrix = cv2.getRotationMatrix2D(bin_image1_center, optimized_params.x, 1)
+
+        rotated_bin_image1 = cv2.warpAffine(bin_image1, rotation_matrix, (cols, rows))
+        return rotation_matrix, rotated_bin_image1
 
     def rotate_image(self, image, angle):
         # padding the image before rotation
