@@ -200,13 +200,20 @@ class FindHand:
 
     def getCentersList(self):
         myHandPoints = [list(finger[0]['center']) for finger in self.fingers]
-        myHandPoints.insert(0,list(self.palm['center']))
+        myHandPoints.reverse()
+        myHandPoints.insert(0, list(self.palm['center']))
         return myHandPoints
 
     # using optimization to find the orientation between to hands
     def _calculate_transform_matrix(self, other_hand):
-        src = np.float32(self.getCentersList()).reshape(-1, 1, 2)
-        dest = np.float32(other_hand.getCentersList()).reshape(-1, 1, 2)
+        src_points = self.getCentersList()
+        dest_points = other_hand.getCentersList()
+        min_points = min(len(src_points), len(dest_points))
+        src_points = src_points[:min_points]
+        dest_points = dest_points[:min_points]
+
+        src = np.float32(src_points).reshape(-1, 1, 2)
+        dest = np.float32(dest_points).reshape(-1, 1, 2)
 
         transform, mask = cv2.findHomography(src, dest, cv2.RANSAC, 5.0)
 
