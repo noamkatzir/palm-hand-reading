@@ -215,7 +215,8 @@ class FindHand:
         src = np.float32(src_points).reshape(-1, 1, 2)
         dest = np.float32(dest_points).reshape(-1, 1, 2)
 
-        transform, mask = cv2.findHomography(src, dest, cv2.RANSAC, 5.0)
+        transform = np.eye(3)
+        transform[:2, :] = cv2.estimateRigidTransform(src, dest, False)
 
         return transform
 
@@ -266,7 +267,7 @@ class FindHand:
                 return np.multiply(255 - self.small_image.copy(), contourMap).astype(np.float)
 
     @staticmethod
-    def optimize_registration_transform(bin_image1, bin_image2, bin_image1_center, bin_image2_center):
+    def optimize_registration_transform(bin_image1, bin_image2, bin_image1_center):
         """
             x is a vector of the including the translation and the transform parameters,
             X0 is the angle
