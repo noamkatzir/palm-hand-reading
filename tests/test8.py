@@ -70,8 +70,9 @@ def mapPalmAndFingers(contours, image):
 
     return fingersEnd, palm
 # images/preprocessed/noam_left_hand_6.12.08_02062015.png
-lefthand = cv2.imread('images/preprocessed/noam_left_hand_30.5.15_02062015_0001.png')
-# lefthand = cv2.imread('noam_left_hand_6.12.08_02062015.png')
+imagesPath = '../images/preprocessed/'
+lefthand = cv2.imread(imagesPath+'noam_left_hand_30.5.15_02062015_0001.png')
+# lefthand = cv2.imread(imagesPath+'noam_left_hand_6.12.08_02062015.png')
 small_color = cv2.resize(lefthand, (0, 0), fx=0.5**5, fy=0.5**5)
 
 lefthand_imgray = cv2.cvtColor(lefthand,cv2.COLOR_BGR2GRAY)

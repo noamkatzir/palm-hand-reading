@@ -7,8 +7,8 @@ import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 
-
-lefthand = cv2.imread('noam_left_hand_30.5.15_02062015_0001.png', 0)
+imagesPath = '../images/preprocessed/'
+lefthand = cv2.imread(imagesPath+'noam_left_hand_30.5.15_02062015_0001.png', 0)
 small = cv2.resize(lefthand, (0, 0), fx=0.5**6, fy=0.5**6)
 
 # lefthand = cv2.imread('omer_left_hand_26.05.93_02062015.png', 0)

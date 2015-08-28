@@ -44,9 +44,9 @@ def mapPalmAndFingers(contours, image):
     #     cv2.fitLine(handElement['contour'])
 
     return handElements, palm
-
-# lefthand = cv2.imread('noam_left_hand_30.5.15_02062015_0001.png')
-lefthand = cv2.imread('noam_left_hand_6.12.08_02062015.png')
+imagesPath = '../images/preprocessed/'
+# lefthand = cv2.imread(imagesPath+'noam_left_hand_30.5.15_02062015_0001.png')
+lefthand = cv2.imread(imagesPath+'noam_left_hand_6.12.08_02062015.png')
 
 lefthand_imgray = cv2.cvtColor(lefthand,cv2.COLOR_BGR2GRAY)
 

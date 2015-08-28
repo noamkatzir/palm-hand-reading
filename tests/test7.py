@@ -45,15 +45,16 @@ def mapPalmAndFingers(contours, image):
 
     return handElements, palm
 
-# lefthand = cv2.imread('noam_left_hand_30.5.15_02062015_0001.png')
-lefthand = cv2.imread('noam_left_hand_6.12.08_02062015.png')
-small_color = cv2.resize(lefthand, (0, 0), fx=0.5**6, fy=0.5**6)
+imagesPath = '../images/preprocessed/'
+# lefthand = cv2.imread(imagesPath+'noam_left_hand_30.5.15_02062015_0001.png')
+lefthand = cv2.imread(imagesPath+'noam_left_hand_6.12.08_02062015.png')
+small_color = cv2.resize(lefthand, (0, 0), fx=0.5**5, fy=0.5**5)
 
 lefthand_imgray = cv2.cvtColor(lefthand,cv2.COLOR_BGR2GRAY)
 
 # I resize the image to very samll size and then get the samll image back to the size of the origin
 # this way I remove most of the noise and keep the large objects
-small = cv2.resize(lefthand_imgray, (0, 0), fx=0.5**6, fy=0.5**6)
+small = cv2.resize(lefthand_imgray, (0, 0), fx=0.5**5, fy=0.5**5)
 small_orig = small.copy()
 small = cv2.resize(small, (lefthand_imgray.shape[1], lefthand.shape[0]),interpolation=cv2.INTER_CUBIC)
 
